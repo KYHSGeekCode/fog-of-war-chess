@@ -7,8 +7,67 @@ from piece import Piece, PieceType
 
 
 class Board:
-    def to_fen(self):
-        raise NotImplementedError()
+    def to_fen(self) -> str:
+        # Generate the piece placement string
+        ranks = []
+        for rank in range(8, 0, -1):  # start from 8 to 1
+            file_counter = 0
+            empty_counter = 0
+            rank_str = ""
+            for file in range(1, 9):
+                piece = self.pieces.get((rank, file))
+                if piece:
+                    if empty_counter:
+                        rank_str += str(empty_counter)
+                        empty_counter = 0
+                    rank_str += (
+                        piece.type.value.upper()
+                        if piece.color == ChessColor.WHITE
+                        else piece.type.value.lower()
+                    )
+                else:
+                    empty_counter += 1
+                file_counter += 1
+            if empty_counter:
+                rank_str += str(empty_counter)
+            ranks.append(rank_str)
+
+        # Determine side to move
+        side_to_move = "w" if self.side_to_move == ChessColor.WHITE else "b"
+
+        # Determine castling rights
+        castling_str = ""
+        if self.castling[ChessColor.WHITE][0]:
+            castling_str += "K"
+        if self.castling[ChessColor.WHITE][1]:
+            castling_str += "Q"
+        if self.castling[ChessColor.BLACK][0]:
+            castling_str += "k"
+        if self.castling[ChessColor.BLACK][1]:
+            castling_str += "q"
+        if not castling_str:
+            castling_str = "-"
+
+        # Determine en passant target square
+        en_passant_str = "-"
+        if self.en_passant:
+            en_passant_str = chr(self.en_passant[0] + ord("a") - 1) + str(
+                self.en_passant[1]
+            )
+
+        # Convert the attributes to FEN format
+        fen = " ".join(
+            [
+                "/".join(ranks),
+                side_to_move,
+                castling_str,
+                en_passant_str,
+                str(self.halfmove_clock),
+                str(self.fullmove_number),
+            ]
+        )
+
+        return fen
 
     def to_fow_fen(self):
         raise NotImplementedError()
@@ -82,6 +141,9 @@ class Board:
         move.piece.rank, move.piece.file = move.to_position
         # Add the piece to its new position.
         self.pieces[move.to_position] = move.piece
+        # Handle promotion.
+        if move.promotion_piece:
+            move.piece.type = move.promotion_piece
         # Handle castling.
         if move.castling_rook:
             # Remove the rook from its original position.
@@ -171,24 +233,36 @@ class Board:
         target_piece = self.pieces.get(target)
         if target_piece is None:
             if not must_capture:
-                moves.append(
-                    Move(
-                        piece,
-                        target,
-                        promotion_type=PieceType.PAWN if can_promote else None,
-                    )
-                )
+                if can_promote:
+                    for type in [
+                        PieceType.QUEEN,
+                        PieceType.ROOK,
+                        PieceType.BISHOP,
+                        PieceType.KNIGHT,
+                    ]:
+                        moves.append(Move(piece, target, promotion_type=type))
+                else:
+                    moves.append(Move(piece, target))
             return False
         else:
             if target_piece.color != piece.color and can_capture:
-                moves.append(
-                    Move(
-                        piece,
-                        target,
-                        capture_target=target_piece,
-                        promotion_type=PieceType.PAWN if can_promote else None,
-                    )
-                )
+                if can_promote:
+                    for type in [
+                        PieceType.QUEEN,
+                        PieceType.ROOK,
+                        PieceType.BISHOP,
+                        PieceType.KNIGHT,
+                    ]:
+                        moves.append(
+                            Move(
+                                piece,
+                                target,
+                                capture_target=target_piece,
+                                promotion_type=type,
+                            )
+                        )
+                else:
+                    moves.append(Move(piece, target, capture_target=target_piece))
             return True
 
     def get_white_pawn_moves(self, piece: Piece) -> List[Move]:
