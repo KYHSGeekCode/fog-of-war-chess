@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional
 
 from fow_chess.fen_parser import FenParser
 from fow_chess.chesscolor import ChessColor
@@ -141,9 +141,9 @@ class Board:
         )
         return fen
 
-    def __init__(
-        self, fen: str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-    ):  # starting position
+    def __init__(self, fen: Optional[str] = None):
+        if fen is None or fen == "":
+            fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"  # starting position
         (
             pieces_on_all_ranks,
             side_to_move,
