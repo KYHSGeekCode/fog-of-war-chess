@@ -1,5 +1,4 @@
 from board import Board
-from pos_to_san import pos_to_san
 
 
 def main():
@@ -8,13 +7,26 @@ def main():
     while True:
         print(board)
         print(f"Turn: {board.side_to_move}")
-        pieces_str = ", ".join(
-            [f"{pos_to_san(pos)}: {piece}" for pos, piece in board.pieces.items()]
+        print(f"En passant: {board.en_passant}")
+        legal_moves = board.get_legal_moves(board.side_to_move)
+        move_candidates = []
+        for moves in legal_moves.values():
+            for move in moves:
+                move_candidates.append(move)
+        print(
+            f"Move candidates: ",
+            ",".join(
+                [f"{i}: {move.to_san()}" for i, move in enumerate(move_candidates)]
+            ),
         )
-        # print(f"Pieces: {pieces_str}")
-        print("Legal moves: ", board.get_legal_moves(board.side_to_move))
-        move = input("Enter move: ")
+        str_move = input("Enter move: ")
+        if str_move == "q":
+            break
+        move = int(str_move)
+        selected_move = move_candidates[move]
+        print(f"Selected move: {selected_move}")
         # board.push_san(move)
+        board.apply_move(selected_move)
 
 
 if __name__ == "__main__":

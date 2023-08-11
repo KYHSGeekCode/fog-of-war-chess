@@ -20,7 +20,7 @@ class Board:
             self.pieces_on_all_ranks,
             side_to_move,
             castling,
-            self.en_passant,
+            en_passant,
             self.halfmove_clock,
             self.fullmove_number,
         ) = FenParser(fen).parse()
@@ -37,6 +37,10 @@ class Board:
         self.side_to_move = (
             ChessColor.WHITE if side_to_move == "w" else ChessColor.BLACK
         )
+        if en_passant == "-":
+            self.en_passant = None
+        else:
+            self.en_passant = (ord(en_passant[0]) + 1, en_passant[1])
 
     def __str__(self):
         return "\n".join(
@@ -61,6 +65,19 @@ class Board:
         # Handle captures.
         if move.capture_target:
             del self.pieces[(move.capture_target.rank, move.capture_target.file)]
+
+        # update en passant
+        self.en_passant = None
+        if (
+            move.piece.type == PieceType.PAWN
+            and abs(move.piece.rank - move.to_position[0]) == 2
+        ):
+            self.en_passant = (
+                move.piece.rank - 1
+                if move.piece.color == ChessColor.BLACK
+                else move.piece.rank + 1,
+                move.piece.file,
+            )
         # Update the piece's position.
         move.piece.rank, move.piece.file = move.to_position
         # Add the piece to its new position.
@@ -102,6 +119,13 @@ class Board:
                     self.castling[ChessColor.BLACK][1] = False
                 if move.piece.type == PieceType.KING:
                     self.castling[ChessColor.BLACK] = [False, False]
+
+        # switch side to move
+        self.side_to_move = (
+            ChessColor.WHITE
+            if self.side_to_move == ChessColor.BLACK
+            else ChessColor.BLACK
+        )
 
     def get_legal_moves(self, color: ChessColor) -> Dict[Piece, List[Move]]:
         legal_moves = {}
@@ -204,8 +228,15 @@ class Board:
             can_capture=True,
             must_capture=True,
         )
-        # TODO: en passant
-
+        if self.en_passant:  # can capture en passant
+            if abs(piece.file - self.en_passant[1]) == 1 and piece.rank == 5:
+                moves.append(
+                    Move(
+                        piece,
+                        self.en_passant,
+                        capture_target=self.pieces[(5, self.en_passant[1])],
+                    )
+                )
         # promotion: auto
         return moves
 
@@ -246,8 +277,15 @@ class Board:
             can_capture=True,
             must_capture=True,
         )
-        # TODO: en passant
-
+        if self.en_passant:  # can capture en passant
+            if abs(piece.file - self.en_passant[1]) == 1 and piece.rank == 4:
+                moves.append(
+                    Move(
+                        piece,
+                        self.en_passant,
+                        capture_target=self.pieces[(4, self.en_passant[1])],
+                    )
+                )
         # promotion: auto
         return moves
 
