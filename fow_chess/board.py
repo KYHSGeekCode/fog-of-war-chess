@@ -175,7 +175,23 @@ class Board:
         self.fen = self.to_fen()
 
     def __str__(self):
-        return self.fen
+        parser = FenParser(self.fow_fen, fow_mark="U")
+        (
+            pieces_on_all_ranks,
+            _,
+            _,
+            _,
+            _,
+            _,
+        ) = parser.parse()
+
+        res = ""
+        for rank in range(8, 0, -1):
+            for file in range(1, 9):
+                piece = pieces_on_all_ranks[8 - rank][file - 1]
+                res += piece
+            res += "\n"
+        return res
 
     def __repr__(self):
         return str(self)

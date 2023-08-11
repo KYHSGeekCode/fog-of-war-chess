@@ -4,8 +4,9 @@ from itertools import chain
 
 
 class FenParser:
-    def __init__(self, fen_str):
+    def __init__(self, fen_str, fow_mark=""):
         self.fen_str = fen_str
+        self.fow_mark = fow_mark
 
     def parse(self):
         (
@@ -28,7 +29,9 @@ class FenParser:
         )
 
     def parse_rank(self, rank):
-        rank_re = re.compile("(\d|[kqbnrpKQBNRP])")  # TODO: Added U (Unknown)
+        rank_re = re.compile(
+            f"(\d|[kqbnrpKQBNRP{self.fow_mark}])"
+        )  # TODO: Added U (Unknown)
         piece_tokens = rank_re.findall(rank)
         pieces = self.flatten(map(self.expand_or_noop, piece_tokens))
         return pieces
@@ -37,7 +40,9 @@ class FenParser:
         return list(chain(*lst))
 
     def expand_or_noop(self, piece_str):
-        piece_re = re.compile("([kqbnrpKQBNRP])")  # TODO: Added U (Unknown)
+        piece_re = re.compile(
+            f"([kqbnrpKQBNRP{self.fow_mark}])"
+        )  # TODO: Added U (Unknown)
         retval: str
         if piece_re.match(piece_str):
             retval = piece_str
