@@ -11,7 +11,6 @@ class Board:
         # Generate the piece placement string
         ranks = []
         for rank in range(8, 0, -1):  # start from 8 to 1
-            file_counter = 0
             empty_counter = 0
             rank_str = ""
             for file in range(1, 9):
@@ -27,7 +26,6 @@ class Board:
                     )
                 else:
                     empty_counter += 1
-                file_counter += 1
             if empty_counter:
                 rank_str += str(empty_counter)
             ranks.append(rank_str)
@@ -51,8 +49,8 @@ class Board:
         # Determine en passant target square
         en_passant_str = "-"
         if self.en_passant:
-            en_passant_str = chr(self.en_passant[0] + ord("a") - 1) + str(
-                self.en_passant[1]
+            en_passant_str = chr(self.en_passant[1] + ord("a") - 1) + str(
+                self.en_passant[0]
             )
 
         # Convert the attributes to FEN format
@@ -188,6 +186,15 @@ class Board:
             if self.side_to_move == ChessColor.BLACK
             else ChessColor.BLACK
         )
+        # update fullmove number
+        if self.side_to_move == ChessColor.WHITE:
+            self.fullmove_number += 1
+
+        # update halfmove clock
+        if move.piece.type == PieceType.PAWN or move.capture_target:
+            self.halfmove_clock = 0
+        else:
+            self.halfmove_clock += 1
 
     def get_legal_moves(self, color: ChessColor) -> Dict[Piece, List[Move]]:
         legal_moves = {}
