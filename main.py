@@ -1,4 +1,4 @@
-from board import Board
+from fow_chess.board import Board
 
 
 def main():
