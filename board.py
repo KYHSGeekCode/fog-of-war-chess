@@ -13,7 +13,9 @@ class Board:
     def to_fow_fen(self):
         raise NotImplementedError()
 
-    def __init__(self, fen: str):
+    def __init__(
+        self, fen: str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    ):  # starting position
         (
             self.pieces_on_all_ranks,
             side_to_move,
@@ -25,7 +27,7 @@ class Board:
         self.pieces: Dict[Tuple[int, int], Piece] = {}
         for rank in range(1, 9):
             for file in range(1, 9):
-                piece = self.pieces_on_all_ranks[rank][file]
+                piece = self.pieces_on_all_ranks[8 - rank][file - 1]
                 if piece != " ":
                     self.pieces[(rank, file)] = Piece(piece, rank, file)
         self.castling = {
@@ -37,11 +39,21 @@ class Board:
         )
 
     def __str__(self):
-        for pieces_on_rank in self.pieces_on_all_ranks:
-            print(pieces_on_rank)
+        return "\n".join(
+            ["".join(pieces_on_rank) for pieces_on_rank in self.pieces_on_all_ranks]
+        )
 
     def __repr__(self):
         return str(self)
+
+    def push_san(self, san: str):
+        legal_moves = self.get_legal_moves(self.side_to_move)
+        for piece, moves in legal_moves.items():
+            for move in moves:
+                if move.to_san() == san:
+                    self.apply_move(move)
+                    return
+        raise Exception("Illegal move")
 
     def apply_move(self, move: Move):
         # Remove the piece from its original position.
@@ -127,22 +139,24 @@ class Board:
         target: Tuple[int, int],
         can_capture: bool = True,
         can_promote: bool = False,
+        must_capture: bool = False,
     ) -> bool:
         if target[0] not in range(1, 9) or target[1] not in range(1, 9):
             return True  # invalid target
 
         target_piece = self.pieces.get(target)
         if target_piece is None:
-            moves.append(
-                Move(
-                    piece,
-                    target,
-                    promotion_type=PieceType.PAWN if can_promote else None,
+            if not must_capture:
+                moves.append(
+                    Move(
+                        piece,
+                        target,
+                        promotion_type=PieceType.PAWN if can_promote else None,
+                    )
                 )
-            )
             return False
-        elif target_piece.color != piece.color:
-            if can_capture:
+        else:
+            if target_piece.color != piece.color and can_capture:
                 moves.append(
                     Move(
                         piece,
@@ -180,6 +194,7 @@ class Board:
             (piece.rank + 1, piece.file + 1),
             can_promote=piece.rank == 7,
             can_capture=True,
+            must_capture=True,
         )
         self.add_move_if_not_blocked(
             moves,
@@ -187,6 +202,7 @@ class Board:
             (piece.rank + 1, piece.file - 1),
             can_promote=piece.rank == 7,
             can_capture=True,
+            must_capture=True,
         )
         # TODO: en passant
 
@@ -220,6 +236,7 @@ class Board:
             (piece.rank - 1, piece.file + 1),
             can_promote=piece.rank == 2,
             can_capture=True,
+            must_capture=True,
         )
         self.add_move_if_not_blocked(
             moves,
@@ -227,6 +244,7 @@ class Board:
             (piece.rank - 1, piece.file - 1),
             can_promote=piece.rank == 2,
             can_capture=True,
+            must_capture=True,
         )
         # TODO: en passant
 
