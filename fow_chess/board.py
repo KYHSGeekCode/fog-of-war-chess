@@ -205,7 +205,8 @@ class Board:
                     return
         raise Exception("Illegal move")
 
-    def apply_move(self, move: Move):
+    # returns: The winner if the game is over, None otherwise
+    def apply_move(self, move: Move) -> Optional[ChessColor]:
         # Remove the piece from its original position.
         del self.pieces[(move.piece.rank, move.piece.file)]
         # Handle captures.
@@ -286,6 +287,8 @@ class Board:
             self.halfmove_clock += 1
         self.fow_fen = self.to_fow_fen(self.side_to_move)
         self.fen = self.to_fen()
+        if move.capture_target and move.capture_target.type == PieceType.KING:
+            return move.piece.color
 
     def get_legal_moves(self, color: ChessColor) -> Dict[Piece, List[Move]]:
         legal_moves = {}
