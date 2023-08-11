@@ -1,9 +1,9 @@
 from typing import Dict, Tuple, List
 
-from chesscolor import ChessColor
-from fen_parser import FenParser
-from move import Move
-from piece import Piece, PieceType
+from fow_chess.fen_parser import FenParser
+from fow_chess.chesscolor import ChessColor
+from fow_chess.move import Move
+from fow_chess.piece import Piece, PieceType
 
 
 class Board:
@@ -67,14 +67,85 @@ class Board:
 
         return fen
 
-    def to_fow_fen(self):
-        raise NotImplementedError()
+    def to_fow_fen(self, color: ChessColor) -> str:
+        # get possible moves to get sight
+        possible_moves = self.get_legal_moves(color)
+        # calculate the sight
+        sight = set()
+        for piece in self.pieces.values():
+            if piece.color == color:
+                sight.add((piece.rank, piece.file))
+        for piece, moves in possible_moves.items():
+            for move in moves:
+                sight.add(move.to_position)
+        # Generate the piece placement string
+        ranks = []
+        for rank in range(8, 0, -1):  # start from 8 to 1
+            empty_counter = 0
+            rank_str = ""
+            for file in range(1, 9):
+                piece = self.pieces.get((rank, file))
+                if (rank, file) in sight:
+                    if piece:
+                        if empty_counter:
+                            rank_str += str(empty_counter)
+                            empty_counter = 0
+
+                        rank_str += (
+                            piece.type.value.upper()
+                            if piece.color == ChessColor.WHITE
+                            else piece.type.value.lower()
+                        )
+                    else:
+                        empty_counter += 1
+                else:
+                    rank_str += "U"
+            if empty_counter:
+                rank_str += str(empty_counter)
+            ranks.append(rank_str)
+
+        # Determine side to move
+        side_to_move = "w" if self.side_to_move == ChessColor.WHITE else "b"
+        # Determine castling rights
+        castling_str = ""
+        if color == ChessColor.WHITE:
+            if self.castling[ChessColor.WHITE][0]:
+                castling_str += "K"
+            if self.castling[ChessColor.WHITE][1]:
+                castling_str += "Q"
+        else:
+            if self.castling[ChessColor.BLACK][0]:
+                castling_str += "k"
+            if self.castling[ChessColor.BLACK][1]:
+                castling_str += "q"
+        if not castling_str:
+            castling_str = "-"
+
+        # Determine en passant target square
+        en_passant_str = "-"
+        if self.en_passant and self.en_passant in sight:
+            en_passant_str = chr(self.en_passant[1] + ord("a") - 1) + str(
+                self.en_passant[0]
+            )
+
+        # Convert the attributes to FEN format
+        fen = " ".join(
+            [
+                "/".join(ranks),
+                side_to_move,
+                castling_str,
+                en_passant_str,
+                "0",  # Hide halfmove clock in FOW
+                str(self.fullmove_number),
+            ]
+        )
+        return fen
 
     def __init__(
         self, fen: str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     ):  # starting position
         (
-            self.pieces_on_all_ranks,
+            pieces_on_all_ranks,
             side_to_move,
             castling,
             en_passant,
@@ -84,7 +155,7 @@ class Board:
         self.pieces: Dict[Tuple[int, int], Piece] = {}
         for rank in range(1, 9):
             for file in range(1, 9):
-                piece = self.pieces_on_all_ranks[8 - rank][file - 1]
+                piece = pieces_on_all_ranks[8 - rank][file - 1]
                 if piece != " ":
                     self.pieces[(rank, file)] = Piece(piece, rank, file)
         self.castling = {
@@ -98,11 +169,13 @@ class Board:
             self.en_passant = None
         else:
             self.en_passant = (ord(en_passant[0]) + 1, en_passant[1])
+        self.halfmove_clock = int(self.halfmove_clock)
+        self.fullmove_number = int(self.fullmove_number)
+        self.fow_fen = self.to_fow_fen(self.side_to_move)
+        self.fen = self.to_fen()
 
     def __str__(self):
-        return "\n".join(
-            ["".join(pieces_on_rank) for pieces_on_rank in self.pieces_on_all_ranks]
-        )
+        return self.fen
 
     def __repr__(self):
         return str(self)
@@ -195,6 +268,8 @@ class Board:
             self.halfmove_clock = 0
         else:
             self.halfmove_clock += 1
+        self.fow_fen = self.to_fow_fen(self.side_to_move)
+        self.fen = self.to_fen()
 
     def get_legal_moves(self, color: ChessColor) -> Dict[Piece, List[Move]]:
         legal_moves = {}

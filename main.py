@@ -6,7 +6,8 @@ def main():
     # board = Board("8/5N2/4p2p/5p1k/1p4rP/1P2Q1P1/P4P1K/5q2 w - - 15 44")
     while True:
         print(board)
-        print(f"FEN: {board.to_fen()}")
+        print(f"FEN: {board.fen}")
+        print(f"FOW FEN: {board.fow_fen}")
         print(f"Turn: {board.side_to_move}")
         print(f"En passant: {board.en_passant}")
         legal_moves = board.get_legal_moves(board.side_to_move)

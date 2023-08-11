@@ -1,6 +1,6 @@
 from typing import Tuple, Optional
 
-from piece import Piece, PieceType
+from fow_chess.piece import Piece, PieceType
 
 
 class Move:

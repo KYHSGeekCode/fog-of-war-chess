@@ -1,7 +1,7 @@
 from enum import Enum
 
-from chesscolor import ChessColor
-from pos_to_san import pos_to_san
+from fow_chess.chesscolor import ChessColor
+from fow_chess.pos_to_san import pos_to_san
 
 
 class PieceType(Enum):
@@ -15,7 +15,6 @@ class PieceType(Enum):
 
 class Piece:
     def __init__(self, piece, rank, file):
-        print(f"Piece: {piece}")
         if piece.islower():
             self.color = ChessColor.BLACK
         else:
