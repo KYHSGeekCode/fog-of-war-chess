@@ -168,7 +168,7 @@ class Board:
         if en_passant == "-":
             self.en_passant = None
         else:
-            self.en_passant = (ord(en_passant[0]) + 1, en_passant[1])
+            self.en_passant = (ord(en_passant[0]) + 1, int(en_passant[1]))
         self.halfmove_clock = int(self.halfmove_clock)
         self.fullmove_number = int(self.fullmove_number)
         self.fow_fen = self.to_fow_fen(self.side_to_move)
