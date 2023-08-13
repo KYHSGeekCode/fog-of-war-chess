@@ -99,6 +99,9 @@ class Board:
                     else:
                         empty_counter += 1
                 else:
+                    if empty_counter:
+                        rank_str += str(empty_counter)
+                        empty_counter = 0
                     rank_str += "U"
             if empty_counter:
                 rank_str += str(empty_counter)
