@@ -1,13 +1,14 @@
-from typing import Tuple, Optional
+from typing import Optional
 
 from fow_chess.piece import Piece, PieceType
+from fow_chess.position import Position
 
 
 class Move:
     def __init__(
         self,
         piece: Piece,
-        to_position: Tuple[int, int],
+        to_position: Position,
         capture_target: Optional[Piece] = None,
         castling_rook: Optional[Piece] = None,
         promotion_type: Optional[PieceType] = None,
@@ -26,8 +27,7 @@ class Move:
             if self.piece.type == PieceType.PAWN:
                 san += chr(ord("a") + self.piece.file)
             san += "x"
-        san += chr(ord("a") + self.to_position[1] - 1)
-        san += chr(ord("1") + self.to_position[0] - 1)
+        san += self.to_position.to_san()
         if self.promotion_piece is not None:
             san += self.promotion_piece.value
         return san

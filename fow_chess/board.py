@@ -1,12 +1,15 @@
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, List, Optional, Set
 
-from fow_chess.fen_parser import FenParser
 from fow_chess.chesscolor import ChessColor
+from fow_chess.fen_parser import FenParser
 from fow_chess.move import Move
 from fow_chess.piece import Piece, PieceType
+from fow_chess.position import Position
 
 
 class Board:
+    en_passant: Optional[Position]
+
     def to_fen(self) -> str:
         # Generate the piece placement string
         ranks = []
@@ -14,7 +17,7 @@ class Board:
             empty_counter = 0
             rank_str = ""
             for file in range(1, 9):
-                piece = self.pieces.get((rank, file))
+                piece = self.pieces.get(Position(rank=rank, file=file))
                 if piece:
                     if empty_counter:
                         rank_str += str(empty_counter)
@@ -49,9 +52,7 @@ class Board:
         # Determine en passant target square
         en_passant_str = "-"
         if self.en_passant:
-            en_passant_str = chr(self.en_passant[1] + ord("a") - 1) + str(
-                self.en_passant[0]
-            )
+            en_passant_str = self.en_passant.to_san()
 
         # Convert the attributes to FEN format
         fen = " ".join(
@@ -71,10 +72,10 @@ class Board:
         # get possible moves to get sight
         possible_moves = self.get_legal_moves(color)
         # calculate the sight
-        sight = set()
+        sight: Set[Position] = set()
         for piece in self.pieces.values():
             if piece.color == color:
-                sight.add((piece.rank, piece.file))
+                sight.add(piece.position)
         for piece, moves in possible_moves.items():
             for move in moves:
                 sight.add(move.to_position)
@@ -84,8 +85,8 @@ class Board:
             empty_counter = 0
             rank_str = ""
             for file in range(1, 9):
-                piece = self.pieces.get((rank, file))
-                if (rank, file) in sight:
+                piece = self.pieces.get(Position(rank=rank, file=file))
+                if Position(rank=rank, file=file) in sight:
                     if piece:
                         if empty_counter:
                             rank_str += str(empty_counter)
@@ -127,9 +128,7 @@ class Board:
         # Determine en passant target square
         en_passant_str = "-"
         if self.en_passant and self.en_passant in sight:
-            en_passant_str = chr(self.en_passant[1] + ord("a") - 1) + str(
-                self.en_passant[0]
-            )
+            en_passant_str = self.en_passant.to_san()
 
         # Convert the attributes to FEN format
         fen = " ".join(
@@ -155,12 +154,13 @@ class Board:
             self.halfmove_clock,
             self.fullmove_number,
         ) = FenParser(fen).parse()
-        self.pieces: Dict[Tuple[int, int], Piece] = {}
+        self.pieces: Dict[Position, Piece] = {}
         for rank in range(1, 9):
             for file in range(1, 9):
                 piece = pieces_on_all_ranks[8 - rank][file - 1]
                 if piece != " ":
-                    self.pieces[(rank, file)] = Piece(piece, rank, file)
+                    pos = Position(rank=rank, file=file)
+                    self.pieces[pos] = Piece(piece, pos)
         self.castling = {
             ChessColor.WHITE: ["K" in castling, "Q" in castling],
             ChessColor.BLACK: ["k" in castling, "q" in castling],
@@ -171,7 +171,7 @@ class Board:
         if en_passant == "-":
             self.en_passant = None
         else:
-            self.en_passant = (ord(en_passant[0]) + 1, int(en_passant[1]))
+            self.en_passant = Position.from_san(en_passant)
         self.halfmove_clock = int(self.halfmove_clock)
         self.fullmove_number = int(self.fullmove_number)
         self.fow_fen = self.to_fow_fen(self.side_to_move)
@@ -211,25 +211,25 @@ class Board:
     # returns: The winner if the game is over, None otherwise
     def apply_move(self, move: Move) -> Optional[ChessColor]:
         # Remove the piece from its original position.
-        del self.pieces[(move.piece.rank, move.piece.file)]
+        del self.pieces[move.piece.position]
         # Handle captures.
         if move.capture_target:
-            del self.pieces[(move.capture_target.rank, move.capture_target.file)]
+            del self.pieces[move.capture_target.position]
 
         # update en passant
         self.en_passant = None
         if (
             move.piece.type == PieceType.PAWN
-            and abs(move.piece.rank - move.to_position[0]) == 2
+            and abs(move.piece.rank - move.to_position.rank) == 2
         ):
-            self.en_passant = (
-                move.piece.rank - 1
+            self.en_passant = Position(
+                rank=move.piece.rank - 1
                 if move.piece.color == ChessColor.BLACK
                 else move.piece.rank + 1,
-                move.piece.file,
+                file=move.piece.file,
             )
         # Update the piece's position.
-        move.piece.rank, move.piece.file = move.to_position
+        move.piece.position = move.to_position
         # Add the piece to its new position.
         self.pieces[move.to_position] = move.piece
         # Handle promotion.
@@ -238,20 +238,26 @@ class Board:
         # Handle castling.
         if move.castling_rook:
             # Remove the rook from its original position.
-            del self.pieces[(move.castling_rook.rank, move.castling_rook.file)]
+            del self.pieces[move.castling_rook.position]
 
             # Define new rook positions based on king's end position
-            if move.to_position == (7, 3):  # Queenside castling for white
-                new_rook_position = (7, 4)
-            elif move.to_position == (7, 7):  # Kingside castling for white
-                new_rook_position = (7, 6)
-            elif move.to_position == (0, 3):  # Queenside castling for black
-                new_rook_position = (0, 4)
+            if move.to_position == Position(
+                rank=7, file=3
+            ):  # Queenside castling for white
+                new_rook_position = Position(rank=7, file=4)
+            elif move.to_position == Position(
+                rank=7, file=7
+            ):  # Kingside castling for white
+                new_rook_position = Position(rank=7, file=6)
+            elif move.to_position == Position(
+                rank=0, file=3
+            ):  # Queenside castling for black
+                new_rook_position = Position(rank=0, file=4)
             else:  # Kingside castling for black
-                new_rook_position = (0, 6)
+                new_rook_position = Position(rank=0, file=6)
 
             # Update the rook's position.
-            move.castling_rook.rank, move.castling_rook.file = new_rook_position
+            move.castling_rook.position = new_rook_position
 
             # Place the rook in its new position.
             self.pieces[new_rook_position] = move.castling_rook
@@ -326,12 +332,12 @@ class Board:
         self,
         moves: List[Move],
         piece: Piece,
-        target: Tuple[int, int],
+        target: Position,
         can_capture: bool = True,
         can_promote: bool = False,
         must_capture: bool = False,
     ) -> bool:
-        if target[0] not in range(1, 9) or target[1] not in range(1, 9):
+        if not target.is_valid():
             return True  # invalid target
 
         target_piece = self.pieces.get(target)
@@ -374,16 +380,16 @@ class Board:
         # march 1 or 2 : rank increases
         if piece.rank == 2:  # can move two squares
             if not self.add_move_if_not_blocked(
-                moves, piece, (3, piece.file), can_capture=False
+                moves, piece, Position(rank=3, file=piece.file), can_capture=False
             ):
                 self.add_move_if_not_blocked(
-                    moves, piece, (4, piece.file), can_capture=False
+                    moves, piece, Position(rank=4, file=piece.file), can_capture=False
                 )
         elif piece.rank <= 7:  # can move only one squareø
             self.add_move_if_not_blocked(
                 moves,
                 piece,
-                (piece.rank + 1, piece.file),
+                Position(rank=piece.rank + 1, file=piece.file),
                 can_promote=piece.rank == 7,
                 can_capture=False,
             )
@@ -393,7 +399,7 @@ class Board:
         self.add_move_if_not_blocked(
             moves,
             piece,
-            (piece.rank + 1, piece.file + 1),
+            Position(rank=piece.rank + 1, file=piece.file + 1),
             can_promote=piece.rank == 7,
             can_capture=True,
             must_capture=True,
@@ -401,18 +407,20 @@ class Board:
         self.add_move_if_not_blocked(
             moves,
             piece,
-            (piece.rank + 1, piece.file - 1),
+            Position(rank=piece.rank + 1, file=piece.file - 1),
             can_promote=piece.rank == 7,
             can_capture=True,
             must_capture=True,
         )
         if self.en_passant:  # can capture en passant
-            if abs(piece.file - self.en_passant[1]) == 1 and piece.rank == 5:
+            if abs(piece.file - self.en_passant.file) == 1 and piece.rank == 5:
                 moves.append(
                     Move(
                         piece,
                         self.en_passant,
-                        capture_target=self.pieces[(5, self.en_passant[1])],
+                        capture_target=self.pieces[
+                            Position(rank=5, file=self.en_passant.file)
+                        ],
                     )
                 )
         # promotion: auto
@@ -423,16 +431,16 @@ class Board:
         # march 1 or 2 : rank decreases
         if piece.rank == 7:  # can move two squares
             if not self.add_move_if_not_blocked(
-                moves, piece, (6, piece.file), can_capture=False
+                moves, piece, Position(rank=6, file=piece.file), can_capture=False
             ):
                 self.add_move_if_not_blocked(
-                    moves, piece, (5, piece.file), can_capture=False
+                    moves, piece, Position(rank=5, file=piece.file), can_capture=False
                 )
         elif piece.rank >= 2:  # can move only one squareø
             self.add_move_if_not_blocked(
                 moves,
                 piece,
-                (piece.rank - 1, piece.file),
+                Position(rank=piece.rank - 1, file=piece.file),
                 can_promote=piece.rank == 2,
                 can_capture=False,
             )
@@ -442,7 +450,7 @@ class Board:
         self.add_move_if_not_blocked(
             moves,
             piece,
-            (piece.rank - 1, piece.file + 1),
+            Position(rank=piece.rank - 1, file=piece.file + 1),
             can_promote=piece.rank == 2,
             can_capture=True,
             must_capture=True,
@@ -450,18 +458,20 @@ class Board:
         self.add_move_if_not_blocked(
             moves,
             piece,
-            (piece.rank - 1, piece.file - 1),
+            Position(rank=piece.rank - 1, file=piece.file - 1),
             can_promote=piece.rank == 2,
             can_capture=True,
             must_capture=True,
         )
         if self.en_passant:  # can capture en passant
-            if abs(piece.file - self.en_passant[1]) == 1 and piece.rank == 4:
+            if abs(piece.file - self.en_passant.file) == 1 and piece.rank == 4:
                 moves.append(
                     Move(
                         piece,
                         self.en_passant,
-                        capture_target=self.pieces[(4, self.en_passant[1])],
+                        capture_target=self.pieces[
+                            Position(rank=4, file=self.en_passant.file)
+                        ],
                     )
                 )
         # promotion: auto
@@ -472,7 +482,7 @@ class Board:
         dx = [1, 2, 2, 1, -1, -2, -2, -1]
         dy = [2, 1, -1, -2, -2, -1, 1, 2]
         for i in range(8):
-            target = (piece.rank + dx[i], piece.file + dy[i])
+            target = Position(rank=piece.rank + dx[i], file=piece.file + dy[i])
             self.add_move_if_not_blocked(moves, piece, target, can_capture=True)
         return moves
 
@@ -480,22 +490,22 @@ class Board:
         moves = []
         # up right
         for i in range(1, 8):
-            target = (piece.rank + i, piece.file + i)
+            target = Position(rank=piece.rank + i, file=piece.file + i)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         # up left
         for i in range(1, 8):
-            target = (piece.rank + i, piece.file - i)
+            target = Position(rank=piece.rank + i, file=piece.file - i)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         # down right
         for i in range(1, 8):
-            target = (piece.rank - i, piece.file + i)
+            target = Position(rank=piece.rank - i, file=piece.file + i)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         # down left
         for i in range(1, 8):
-            target = (piece.rank - i, piece.file - i)
+            target = Position(rank=piece.rank - i, file=piece.file - i)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         return moves
@@ -504,22 +514,22 @@ class Board:
         moves = []
         # up
         for i in range(1, 8):
-            target = (piece.rank + i, piece.file)
+            target = Position(rank=piece.rank + i, file=piece.file)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         # down
         for i in range(1, 8):
-            target = (piece.rank - i, piece.file)
+            target = Position(rank=piece.rank - i, file=piece.file)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         # right
         for i in range(1, 8):
-            target = (piece.rank, piece.file + i)
+            target = Position(rank=piece.rank, file=piece.file + i)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         # left
         for i in range(1, 8):
-            target = (piece.rank, piece.file - i)
+            target = Position(rank=piece.rank, file=piece.file - i)
             if self.add_move_if_not_blocked(moves, piece, target):
                 break
         return moves
@@ -532,38 +542,44 @@ class Board:
         dx = [1, 1, 1, 0, 0, -1, -1, -1]
         dy = [1, 0, -1, 1, -1, 1, 0, -1]
         for i in range(8):
-            target = (piece.rank + dx[i], piece.file + dy[i])
+            target = Position(rank=piece.rank + dx[i], file=piece.file + dy[i])
             self.add_move_if_not_blocked(moves, piece, target, can_capture=True)
         # castling
         # king side rook (right rook)
         if self.castling[piece.color][0]:
-            right_rook = self.pieces.get((piece.rank, 8))
+            right_rook = self.pieces.get(Position(rank=piece.rank, file=8))
             if right_rook is not None:
                 # check if there are no pieces between king and rook
                 for file in range(piece.file + 1, right_rook.file):
-                    if self.pieces.get((piece.rank, file)) is not None:
+                    if (
+                        self.pieces.get(Position(rank=piece.rank, file=file))
+                        is not None
+                    ):
                         break
                 else:
                     moves.append(
                         Move(
                             piece,
-                            (piece.rank, piece.file + 2),
+                            Position(rank=piece.rank, file=piece.file + 2),
                             castling_rook=right_rook,
                         )
                     )
         # queen side rook (left rook)
         if self.castling[piece.color][1]:
-            left_rook = self.pieces.get((piece.rank, 1))
+            left_rook = self.pieces.get(Position(rank=piece.rank, file=1))
             if left_rook is not None:
                 # check if there are no pieces between king and rook
                 for file in range(left_rook.file + 1, piece.file):
-                    if self.pieces.get((piece.rank, file)) is not None:
+                    if (
+                        self.pieces.get(Position(rank=piece.rank, file=file))
+                        is not None
+                    ):
                         break
                 else:
                     moves.append(
                         Move(
                             piece,
-                            (piece.rank, piece.file - 2),
+                            Position(rank=piece.rank, file=piece.file - 2),
                             castling_rook=left_rook,
                         )
                     )
