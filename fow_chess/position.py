@@ -21,3 +21,9 @@ class Position:
 
     def is_valid(self) -> bool:
         return self.file in range(1, 9) and self.rank in range(1, 9)
+
+    def __eq__(self, other):
+        return self.file == other.file and self.rank == other.rank
+
+    def __hash__(self):
+        return hash((self.file, self.rank))

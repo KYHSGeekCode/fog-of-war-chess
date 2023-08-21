@@ -176,6 +176,8 @@ class Board:
         self.fullmove_number = int(self.fullmove_number)
         self.fow_fen = self.to_fow_fen(self.side_to_move)
         self.fen = self.to_fen()
+        # print("Initial fow fen = ", self.fow_fen)
+        # print("Initial fen = ", self.fen)
 
     def __str__(self):
         parser = FenParser(self.fow_fen, fow_mark="U")
