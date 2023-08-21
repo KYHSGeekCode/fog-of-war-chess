@@ -415,7 +415,11 @@ class Board:
             must_capture=True,
         )
         if self.en_passant:  # can capture en passant
-            if abs(piece.file - self.en_passant.file) == 1 and piece.rank == 5:
+            if (
+                abs(piece.file - self.en_passant.file) == 1
+                and piece.rank == 5
+                and self.en_passant.rank == 6
+            ):
                 moves.append(
                     Move(
                         piece,
@@ -466,7 +470,11 @@ class Board:
             must_capture=True,
         )
         if self.en_passant:  # can capture en passant
-            if abs(piece.file - self.en_passant.file) == 1 and piece.rank == 4:
+            if (
+                abs(piece.file - self.en_passant.file) == 1
+                and piece.rank == 4
+                and self.en_passant.rank == 3
+            ):
                 moves.append(
                     Move(
                         piece,
