@@ -244,19 +244,19 @@ class Board:
 
             # Define new rook positions based on king's end position
             if move.to_position == Position(
-                rank=7, file=3
-            ):  # Queenside castling for white
-                new_rook_position = Position(rank=7, file=4)
-            elif move.to_position == Position(
-                rank=7, file=7
-            ):  # Kingside castling for white
-                new_rook_position = Position(rank=7, file=6)
-            elif move.to_position == Position(
-                rank=0, file=3
+                rank=8, file=3
             ):  # Queenside castling for black
-                new_rook_position = Position(rank=0, file=4)
+                new_rook_position = Position(rank=8, file=4)
+            elif move.to_position == Position(
+                rank=8, file=7
+            ):  # Kingside castling for black
+                new_rook_position = Position(rank=8, file=6)
+            elif move.to_position == Position(
+                rank=1, file=3
+            ):  # Queenside castling for white
+                new_rook_position = Position(rank=1, file=4)
             else:  # Kingside castling for black
-                new_rook_position = Position(rank=0, file=6)
+                new_rook_position = Position(rank=1, file=6)
 
             # Update the rook's position.
             move.castling_rook.position = new_rook_position
