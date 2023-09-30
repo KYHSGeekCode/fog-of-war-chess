@@ -204,7 +204,7 @@ class Board:
                 pos = Position(rank=rank + 1, file=file + 1)
                 for color in [ChessColor.WHITE, ChessColor.BLACK]:
                     for type in PieceType:
-                        if arr[rank, file, 7 + color.value * 6 + type.value]:
+                        if arr[rank, file, 7 + color.value * 6 + type.ordinal]:
                             board.pieces[pos] = Piece(
                                 piece="p", position=pos
                             )  # FIXME: dummy piece
@@ -212,16 +212,16 @@ class Board:
                             board.pieces[pos].color = color
 
         # Extract en passant information
-        if arr[0, :, 7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value].any():
+        if arr[0, :, 7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.ordinal].any():
             file = np.argmax(
-                arr[0, :, 7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value]
+                arr[0, :, 7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.ordinal]
             )
             board.en_passant = Position(
                 rank=3, file=file + 1
             )  # Adjust for 0-based index
-        elif arr[7, :, 7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value].any():
+        elif arr[7, :, 7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.ordinal].any():
             file = np.argmax(
-                arr[7, :, 7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value]
+                arr[7, :, 7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.ordinal]
             )
             board.en_passant = Position(
                 rank=6, file=file + 1
@@ -689,19 +689,21 @@ class Board:
             for file in range(8):
                 piece = self.pieces.get(Position(rank=rank + 1, file=file + 1))
                 if piece:
-                    array[rank, file, 7 + piece.color.value * 6 + piece.type.value] = 1
+                    array[
+                        rank, file, 7 + piece.color.value * 6 + piece.type.ordinal
+                    ] = 1
         if self.en_passant:
             if self.en_passant.rank == 3:  # white is vulnerable
                 array[
                     0,
                     self.en_passant.file - 1,
-                    7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value,
+                    7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.ordinal,
                 ] = 1
             else:
                 array[
                     7,
                     self.en_passant.file - 1,
-                    7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value,
+                    7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.ordinal,
                 ] = 1
 
         # Channel 19: represents whether a position has been seen before (whether a position is a 2-fold repetition)
@@ -748,7 +750,7 @@ class Board:
                     piece = self.pieces.get(pos)
                     if piece:
                         array[
-                            rank, file, 7 + piece.color.value * 6 + piece.type.value
+                            rank, file, 7 + piece.color.value * 6 + piece.type.ordinal
                         ] = 1
                 # You can choose to fill unsighted locations with a specific pattern if needed
 
@@ -757,13 +759,13 @@ class Board:
                 array[
                     0,
                     self.en_passant.file - 1,
-                    7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value,
+                    7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.ordinal,
                 ] = 1
             else:
                 array[
                     7,
                     self.en_passant.file - 1,
-                    7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value,
+                    7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.ordinal,
                 ] = 1
 
         array[:, :, 19] = 0  # Adjusted for FOW

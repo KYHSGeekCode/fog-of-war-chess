@@ -12,6 +12,17 @@ class PieceType(Enum):
     QUEEN = "q"
     KING = "k"
 
+    @property
+    def ordinal(self):
+        return {
+            PieceType.PAWN: 0,
+            PieceType.KNIGHT: 1,
+            PieceType.BISHOP: 2,
+            PieceType.ROOK: 3,
+            PieceType.QUEEN: 4,
+            PieceType.KING: 5,
+        }[self]
+
 
 class Piece:
     def __init__(self, piece, position: Position):
