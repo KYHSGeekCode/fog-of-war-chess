@@ -181,6 +181,71 @@ class Board:
         # print("Initial fow fen = ", self.fow_fen)
         # print("Initial fen = ", self.fen)
 
+    @classmethod
+    def from_array(cls, arr: np.ndarray, fullmove_number: int):
+        # Init empty board
+        board = cls()
+        board.pieces.clear()
+
+        # Extract castling rights
+        board.castling[ChessColor.WHITE][0] = arr[:, :, 0].any()
+        board.castling[ChessColor.WHITE][1] = arr[:, :, 1].any()
+        board.castling[ChessColor.BLACK][0] = arr[:, :, 2].any()
+        board.castling[ChessColor.BLACK][1] = arr[:, :, 3].any()
+
+        # Extract side to move
+        board.side_to_move = (
+            ChessColor.WHITE if arr[:, :, 4].any() else ChessColor.BLACK
+        )
+
+        # Extract pieces from their respective channels
+        for rank in range(8):
+            for file in range(8):
+                pos = Position(rank=rank + 1, file=file + 1)
+                for color in [ChessColor.WHITE, ChessColor.BLACK]:
+                    for type in PieceType:
+                        if arr[rank, file, 7 + color.value * 6 + type.value]:
+                            board.pieces[pos] = Piece(
+                                piece="p", position=pos
+                            )  # FIXME: dummy piece
+                            board.pieces[pos].type = type
+                            board.pieces[pos].color = color
+
+        # Extract en passant information
+        if arr[0, :, 7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value].any():
+            file = np.argmax(
+                arr[0, :, 7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value]
+            )
+            board.en_passant = Position(
+                rank=3, file=file + 1
+            )  # Adjust for 0-based index
+        elif arr[7, :, 7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value].any():
+            file = np.argmax(
+                arr[7, :, 7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value]
+            )
+            board.en_passant = Position(
+                rank=6, file=file + 1
+            )  # Adjust for 0-based index
+        else:
+            board.en_passant = None
+
+        # Extract halfmove clock from its respective channel
+        positions_with_halfmove_clock = np.argwhere(arr[:, :, 5])
+        if positions_with_halfmove_clock.size > 0:
+            rank, file, _ = positions_with_halfmove_clock[0]
+            board.halfmove_clock = rank * 8 + file
+        else:
+            board.halfmove_clock = 0
+
+        # manually set the fullmove number
+        board.fullmove_number = fullmove_number
+
+        # Recalculate the FEN strings
+        board.fen = board.to_fen()
+        board.fow_fen = board.to_fow_fen(board.side_to_move)
+
+        return board
+
     def __str__(self):
         parser = FenParser(self.fow_fen, fow_mark="U")
         (
