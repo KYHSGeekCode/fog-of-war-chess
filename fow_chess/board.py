@@ -1,5 +1,7 @@
 from typing import Dict, List, Optional, Set
 
+import numpy as np
+
 from fow_chess.chesscolor import ChessColor
 from fow_chess.fen_parser import FenParser
 from fow_chess.move import Move
@@ -594,3 +596,110 @@ class Board:
                         )
                     )
         return moves
+
+    def to_array(self) -> np.array:
+        array = np.zeros((8, 8, 20), dtype=bool)
+        if self.castling[ChessColor.WHITE][0]:
+            array[:, :, 0] = 1
+        if self.castling[ChessColor.WHITE][1]:
+            array[:, :, 1] = 1
+        if self.castling[ChessColor.BLACK][0]:
+            array[:, :, 2] = 1
+        if self.castling[ChessColor.BLACK][1]:
+            array[:, :, 3] = 1
+        if self.side_to_move == ChessColor.WHITE:
+            array[:, :, 4] = 1
+        # Channel 5: A move clock counting up to the 50 move rule.
+        # Represented by a single channel where the n th element in the flattened channel is set
+        # if there has been n moves
+        array[self.halfmove_clock // 8, self.halfmove_clock % 8, 5] = 1
+        # Channel 6: All ones to help neural networks find board edges in padded convolutions
+        array[:, :, 6] = 1
+        # Channel 7 - 18: One channel for each piece type and player color combination.
+        # For example, there is a specific channel that represents black knights.
+        # An index of this channel is set to 1 if a black knight is in the corresponding spot on the game board,
+        # otherwise, it is set to 0. Similar to LeelaChessZero, en passant possibilities are represented by
+        # displaying the vulnerable pawn on the 8th row instead of the 5th.
+        for rank in range(8):
+            for file in range(8):
+                piece = self.pieces.get(Position(rank=rank + 1, file=file + 1))
+                if piece:
+                    array[rank, file, 7 + piece.color.value * 6 + piece.type.value] = 1
+        if self.en_passant:
+            if self.en_passant.rank == 3:  # white is vulnerable
+                array[
+                    0,
+                    self.en_passant.file - 1,
+                    7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value,
+                ] = 1
+            else:
+                array[
+                    7,
+                    self.en_passant.file - 1,
+                    7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value,
+                ] = 1
+
+        # Channel 19: represents whether a position has been seen before (whether a position is a 2-fold repetition)
+        array[:, :, 19] = 0
+        return array
+
+    def to_fow_array(self, color: ChessColor) -> np.ndarray:
+        # get possible moves to get sight
+        possible_moves = self.get_legal_moves(color)
+        # calculate the sight
+        sight: Set[Position] = set()
+        for piece in self.pieces.values():
+            if piece.color == color:
+                sight.add(piece.position)
+        for piece, moves in possible_moves.items():
+            for move in moves:
+                sight.add(move.to_position)
+
+        array = np.zeros((8, 8, 20), dtype=bool)
+        if self.castling[ChessColor.WHITE][0]:
+            array[:, :, 0] = 1
+        if self.castling[ChessColor.WHITE][1]:
+            array[:, :, 1] = 1
+        if self.castling[ChessColor.BLACK][0]:
+            array[:, :, 2] = 1
+        if self.castling[ChessColor.BLACK][1]:
+            array[:, :, 3] = 1
+        if self.side_to_move == ChessColor.WHITE:
+            array[:, :, 4] = 1
+
+        # No longer using halfmove_clock for its original purpose, but to represent visibility
+        for rank in range(8):
+            for file in range(8):
+                pos = Position(rank=rank + 1, file=file + 1)
+                if pos in sight:
+                    array[rank, file, 5] = 1  # Set visibility for the position in sight
+
+        array[:, :, 6] = 1
+
+        for rank in range(8):
+            for file in range(8):
+                pos = Position(rank=rank + 1, file=file + 1)
+                if pos in sight:
+                    piece = self.pieces.get(pos)
+                    if piece:
+                        array[
+                            rank, file, 7 + piece.color.value * 6 + piece.type.value
+                        ] = 1
+                # You can choose to fill unsighted locations with a specific pattern if needed
+
+        if self.en_passant and self.en_passant in sight:
+            if self.en_passant.rank == 3:  # white is vulnerable
+                array[
+                    0,
+                    self.en_passant.file - 1,
+                    7 + ChessColor.WHITE.value * 6 + PieceType.PAWN.value,
+                ] = 1
+            else:
+                array[
+                    7,
+                    self.en_passant.file - 1,
+                    7 + ChessColor.BLACK.value * 6 + PieceType.PAWN.value,
+                ] = 1
+
+        array[:, :, 19] = 0  # Adjusted for FOW
+        return array
