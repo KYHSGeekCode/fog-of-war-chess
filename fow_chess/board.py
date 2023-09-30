@@ -176,8 +176,8 @@ class Board:
             self.en_passant = Position.from_san(en_passant)
         self.halfmove_clock = int(self.halfmove_clock)
         self.fullmove_number = int(self.fullmove_number)
-        self.fow_fen = self.to_fow_fen(self.side_to_move)
         self.fen = self.to_fen()
+        self.fow_fen = self.to_fow_fen(self.side_to_move)
         # print("Initial fow fen = ", self.fow_fen)
         # print("Initial fen = ", self.fen)
 
@@ -267,15 +267,6 @@ class Board:
 
     def __repr__(self):
         return str(self)
-
-    def push_san(self, san: str):
-        legal_moves = self.get_legal_moves(self.side_to_move)
-        for piece, moves in legal_moves.items():
-            for move in moves:
-                if move.to_san() == san:
-                    self.apply_move(move)
-                    return
-        raise Exception("Illegal move")
 
     # returns: The winner if the game is over, None otherwise
     def apply_move(self, move: Move) -> Optional[ChessColor]:
@@ -419,9 +410,9 @@ class Board:
                         PieceType.BISHOP,
                         PieceType.KNIGHT,
                     ]:
-                        moves.append(Move(piece, target, promotion_type=type))
+                        moves.append(Move(self.fen, piece, target, promotion_type=type))
                 else:
-                    moves.append(Move(piece, target))
+                    moves.append(Move(self.fen, piece, target))
             return False
         else:
             if target_piece.color != piece.color and can_capture:
@@ -434,6 +425,7 @@ class Board:
                     ]:
                         moves.append(
                             Move(
+                                self.fen,
                                 piece,
                                 target,
                                 capture_target=target_piece,
@@ -441,7 +433,9 @@ class Board:
                             )
                         )
                 else:
-                    moves.append(Move(piece, target, capture_target=target_piece))
+                    moves.append(
+                        Move(self.fen, piece, target, capture_target=target_piece)
+                    )
             return True
 
     def get_white_pawn_moves(self, piece: Piece) -> List[Move]:
@@ -489,6 +483,7 @@ class Board:
             ):
                 moves.append(
                     Move(
+                        self.fen,
                         piece,
                         self.en_passant,
                         capture_target=self.pieces[
@@ -544,6 +539,7 @@ class Board:
             ):
                 moves.append(
                     Move(
+                        self.fen,
                         piece,
                         self.en_passant,
                         capture_target=self.pieces[
@@ -636,6 +632,7 @@ class Board:
                 else:
                     moves.append(
                         Move(
+                            self.fen,
                             piece,
                             Position(rank=piece.rank, file=piece.file + 2),
                             castling_rook=right_rook,
@@ -655,6 +652,7 @@ class Board:
                 else:
                     moves.append(
                         Move(
+                            self.fen,
                             piece,
                             Position(rank=piece.rank, file=piece.file - 2),
                             castling_rook=left_rook,
