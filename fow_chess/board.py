@@ -232,7 +232,7 @@ class Board:
         # Extract halfmove clock from its respective channel
         positions_with_halfmove_clock = np.argwhere(arr[:, :, 5])
         if positions_with_halfmove_clock.size > 0:
-            rank, file, _ = positions_with_halfmove_clock[0]
+            rank, file = positions_with_halfmove_clock[0]
             board.halfmove_clock = rank * 8 + file
         else:
             board.halfmove_clock = 0
