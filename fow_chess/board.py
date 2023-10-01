@@ -358,6 +358,8 @@ class Board:
         self.fen = self.to_fen()
         if move.capture_target and move.capture_target.type == PieceType.KING:
             return move.piece.color
+        if self.halfmove_clock >= 50:
+            return ChessColor.DRAW
 
     def get_legal_moves(self, color: ChessColor) -> Dict[Piece, List[Move]]:
         legal_moves = {}
